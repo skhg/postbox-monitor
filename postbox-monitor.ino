@@ -1,3 +1,5 @@
+#include <SoftwareSerial.h>
+
 #include <LowPower.h>
 
 #define post_flap 2
