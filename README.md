@@ -11,3 +11,7 @@ Magic is `sudo rfcomm connect hci0 AA:BB:CC:DD:EE:FF`
 ## Send data from Arduino
 
 http://blog.whatgeek.com.pt/2015/09/bluetooth-communication-between-raspberry-pi-and-arduino/
+
+## Trigger BT connection from Arduino
+Maybe?
+https://stackoverflow.com/questions/18752499/initiate-connection-from-arduino-to-remote-device
