@@ -16,3 +16,8 @@ http://blog.whatgeek.com.pt/2015/09/bluetooth-communication-between-raspberry-pi
 ## Trigger BT connection from Arduino
 Maybe?
 https://stackoverflow.com/questions/18752499/initiate-connection-from-arduino-to-remote-device
+
+
+Required on Raspi
+
+`sudo apt-get install bluez python-bluez`
