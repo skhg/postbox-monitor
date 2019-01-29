@@ -54,7 +54,7 @@ void loop() {
     //TODO: turn on bluetooth here, wait a bit for activation
     printlnWaitForTransmitFinish("p");
     //TODO: turn off bluetooth here
-    
+    //TODO: when turning off bluetooth, check if the TX/RX/GND pins also have to be manually disabled somehow
     
     interruptSleep(door_interrupt);
 
