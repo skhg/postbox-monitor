@@ -1,34 +1,39 @@
 import bluetooth
 import sys
+import socket
 
 bd_addr = "00:0D:19:03:AF:9F" #Arduino bluetooth MAC
 port = 1
 
-sock = bluetooth.BluetoothSocket (bluetooth.RFCOMM)
-
-def wait_for_connection(timeout):
-	int rcv_count = 0
-
+def wait_for_connection():
+	rcv_count = 0
+        
+        sock = bluetooth.BluetoothSocket (bluetooth.RFCOMM)
 	try:
-		print("Waiting for connection")
-		sock.settimeout(None) #Infinite timeout while we wait for something to happen
-		sock.connect((bd_addr, port))
+            print("DEBUG: Waiting for connection...")
+            sock.connect((bd_addr, port))
 
-		while True:
-			print("Awake - reading...")
-			sock.settimeout(timeout) #Arduino now awake so short timeout
-			sock.recv(1024)
-			rcv_count = rcv_count + 1
+	    while True:
+                print("DEBUG: Waiting for packet...")
+	    	data = sock.recv(1024)
+                print("DEBUG: Packet received.")
+                rcv_count = rcv_count + 1
 
 	except bluetooth.btcommon.BluetoothError as e:
-		print("Session finished (timeout)")
+            print("DEBUG:" + str(e))
+            print("DEBUG: Session finished.")
+            sock.shutdown(socket.SHUT_RDWR)
+            sock.close()
 
 	return rcv_count
 
-
-
-
 while True:
-	code = wait_for_connection(10)
-
-	print(code)
+	code = wait_for_connection()
+        
+        if code == 1:
+            print('INFO: Postman arrived!')
+        elif code == 2:
+            print('INFO: Post read!')
+        else:
+            if code != 0: # Default behaviour
+                print('WARN: Unknown code: ' + str(code))
