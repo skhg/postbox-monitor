@@ -1,26 +1,34 @@
 import bluetooth
 import sys
 
-bd_addr = "00:0D:19:03:AF:9F" #The address from the HC-05 sensor
+bd_addr = "00:0D:19:03:AF:9F" #Arduino bluetooth MAC
 port = 1
+
 sock = bluetooth.BluetoothSocket (bluetooth.RFCOMM)
-sock.connect((bd_addr,port))
-#sock.bind(("", bluetooth.PORT_ANY))
 
-#sock.listen(1)
+def wait_for_connection(timeout):
+	int rcv_count = 0
 
-#data = ""
-while 1:
 	try:
-		data = sock.recv(1024)
-                sys.stdout.write(data)
-                sys.stdout.write('.')
-                sys.stdout.flush()
-		#data_end = data.find('\n')
-		#if data_end != -1:
-		#	rec = data[:data_end]
-		#	print data
-		#	data = data[data_end+1:]
-	except KeyboardInterrupt:
-		break
-sock.close()
+		print("Waiting for connection")
+		sock.settimeout(None) #Infinite timeout while we wait for something to happen
+		sock.connect((bd_addr, port))
+
+		while True:
+			print("Awake - reading...")
+			sock.settimeout(timeout) #Arduino now awake so short timeout
+			sock.recv(1024)
+			rcv_count = rcv_count + 1
+
+	except bluetooth.btcommon.BluetoothError as e:
+		print("Session finished (timeout)")
+
+	return rcv_count
+
+
+
+
+while True:
+	code = wait_for_connection(10)
+
+	print(code)
