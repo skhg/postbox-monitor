@@ -1,6 +1,6 @@
 import bluetooth
 
-bd_addr = "00:0D:19:03:AF:9F" //The address from the HC-05 sensor
+bd_addr = "00:0D:19:03:AF:9F" #The address from the HC-05 sensor
 port = 1
 sock = bluetooth.BluetoothSocket (bluetooth.RFCOMM)
 sock.connect((bd_addr,port))
