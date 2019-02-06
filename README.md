@@ -30,3 +30,7 @@ http://www.home-automation-community.com/arduino-low-power-how-to-run-atmega328p
 
 https://www.digikey.com/en/resources/conversion-calculators/conversion-calculator-resistor-color-code-5-band
 https://learn.adafruit.com/transistors-101?view=all
+
+
+## SMS gateway
+https://www.opentextingonline.com/emailtotext.aspx
