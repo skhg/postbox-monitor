@@ -21,3 +21,12 @@ https://stackoverflow.com/questions/18752499/initiate-connection-from-arduino-to
 Required on Raspi
 
 `sudo apt-get install bluez python-bluez`
+
+## Low Power
+
+http://www.home-automation-community.com/arduino-low-power-how-to-run-atmega328p-for-a-year-on-coin-cell-battery/
+
+## Transistor
+
+https://www.digikey.com/en/resources/conversion-calculators/conversion-calculator-resistor-color-code-5-band
+https://learn.adafruit.com/transistors-101?view=all
