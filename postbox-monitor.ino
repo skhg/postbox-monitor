@@ -9,9 +9,9 @@
 #define door_interrupt 1
 
 #define RX 0
-#define TX 1
+#define TX A7
 
-#define BT_SWITCH A0
+#define BT_SWITCH A6
 
 SoftwareSerial bluetooth (RX, TX);  //RX, TX (Switched on the Bluetooth - RX -> TX | TX -> RX)
 
