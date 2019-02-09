@@ -4,7 +4,7 @@
 #define TX 1
 SoftwareSerial mySerial (RX, TX);  //RX, TX (Switched on the Bluetooth - RX -> TX | TX -> RX)
 
-#define bluetoothSwitch A0
+#define bluetoothSwitch A6
 
 void setup() {
   pinMode(RX, INPUT);
