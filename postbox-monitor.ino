@@ -9,13 +9,17 @@
 #define door_interrupt 1
 
 #define RX 0
-#define TX 1
+#define TX A7
+
+#define BT_SWITCH A6
 
 SoftwareSerial bluetooth (RX, TX);  //RX, TX (Switched on the Bluetooth - RX -> TX | TX -> RX)
 
-void setup() {
+void setup() { 
   pinMode(RX, INPUT);
   pinMode(TX, OUTPUT);
+  
+  pinMode(BT_SWITCH, OUTPUT);
   
   pinMode(post_flap, INPUT);
   pinMode(door_flap, INPUT);
@@ -27,7 +31,7 @@ void setup() {
 void wake() {
 }
 
-void printlnWaitForTransmitFinish(String line){
+void safeTransmit(String line){
   bluetooth.println(line);
 
   bluetooth.flush();
@@ -40,29 +44,43 @@ void printlnWaitForTransmitFinish(String line){
 }
 
 void interruptSleep(int interruptId){
+  bluetoothPower(false);
   attachInterrupt(interruptId, wake, LOW);
   LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF); 
   
   // Disable external pin interrupt on wake up pin.
-  detachInterrupt(interruptId); 
+  detachInterrupt(interruptId);
+  bluetoothPower(true);
+}
+
+void bluetoothPower(bool on){
+  if(on){
+    digitalWrite(BT_SWITCH, HIGH);
+  }else{
+    digitalWrite(BT_SWITCH, LOW);
+  }
+}
+
+void transmitPost(){
+  delay(10000);
+  safeTransmit("p");
+  delay(1000);
+}
+
+void transmitDoor(){
+  delay(10000);
+  safeTransmit("r");
+  delay(500);
+  safeTransmit("r");
+  delay(1000);
 }
 
 void loop() {
-
     interruptSleep(post_interrupt);
 
-    //TODO: turn on bluetooth here, wait a bit for activation
-    printlnWaitForTransmitFinish("p");
-    //TODO: turn off bluetooth here
-    //TODO: when turning off bluetooth, check if the TX/RX/GND pins also have to be manually disabled somehow
+    transmitPost();
     
     interruptSleep(door_interrupt);
 
-
-
-    //TODO: turn on bluetooth here, wait a bit for activation
-    printlnWaitForTransmitFinish("r");
-    delay(500); //todo: check how reliable this delay is
-    printlnWaitForTransmitFinish("r");
-    //TODO: turn off bluetooth here
+    transmitDoor();
 }
