@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import bluetooth
 import sys
 import socket
