@@ -34,3 +34,6 @@ https://learn.adafruit.com/transistors-101?view=all
 
 ## SMS gateway
 https://www.opentextingonline.com/emailtotext.aspx
+
+## Send emails
+https://stackabuse.com/how-to-send-emails-with-gmail-using-python/
