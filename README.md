@@ -37,3 +37,6 @@ https://www.opentextingonline.com/emailtotext.aspx
 
 ## Send emails
 https://stackabuse.com/how-to-send-emails-with-gmail-using-python/
+
+## Sensor
+https://randomnerdtutorials.com/monitor-your-door-using-magnetic-reed-switch-and-arduino/
