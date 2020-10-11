@@ -9,9 +9,9 @@
 #define door_interrupt 1
 
 #define RX 0
-#define TX A7
+#define TX 1
 
-#define BT_SWITCH A6
+#define BT_SWITCH A0
 
 SoftwareSerial bluetooth (RX, TX);  //RX, TX (Switched on the Bluetooth - RX -> TX | TX -> RX)
 
@@ -62,13 +62,13 @@ void bluetoothPower(bool on){
 }
 
 void transmitPost(){
-  delay(10000);
+  delay(20000);
   safeTransmit("p");
   delay(1000);
 }
 
 void transmitDoor(){
-  delay(10000);
+  delay(20000);
   safeTransmit("r");
   delay(500);
   safeTransmit("r");
