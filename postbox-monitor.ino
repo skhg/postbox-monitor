@@ -1,86 +1,205 @@
-#include <SoftwareSerial.h>
+#define STABILISING_DATA_POINTS 100
+#define STABILISING_POINT_INTERVAL 1
 
-#include <LowPower.h>
+/**
+ * Network Configuration
+ */
+#define WIFI_CONNECT_TIMEOUT_SECONDS 10
+#define SERVER_ROOT "http://192.168.178.20:8080/postbox"
+#define WIFI_CLIENT_HOSTNAME "postbox"
 
-#define post_flap 2
-#define door_flap 3
+/**
+ * Http defaults
+ */
 
-#define post_interrupt 0
-#define door_interrupt 1
+#define HTTP_OK 200
+#define HTTP_CONTENT_TYPE_HEADER "Content-Type"
+#define HTTP_CONTENT_LENGTH_HEADER "Content-Length"
+#define HTTP_APPLICATION_JSON_CONTENT_TYPE "application/json"
 
-#define RX 0
-#define TX 1
+ 
+/**
+ * Pin Mappings and hardware configuration
+ */
 
-#define BT_SWITCH A0
+#define FLAP_BUTTON_MASK 0x1000000000 //Button connected to GPIO36 (A0)
+#define DOOR_BUTTON_MASK 0x8000000000 //Button connected to GPIO39 (A1)
 
-SoftwareSerial bluetooth (RX, TX);  //RX, TX (Switched on the Bluetooth - RX -> TX | TX -> RX)
+#define FLAP A0
+#define DOOR A1
+#define VOLTAGE_PIN A2
 
-void setup() { 
-  pinMode(RX, INPUT);
-  pinMode(TX, OUTPUT);
+enum DOOR_STATES {
+  OPEN,
+  CLOSED
+};
+
+enum EVENT_TO_TRANSMIT {
+  NO_EVENT,
+  BOOT,
+  DELIVERED,
+  RETRIEVED,
+  PING
+};
+
+RTC_DATA_ATTR int _retryCount = 0;
+RTC_DATA_ATTR int _triggerSwitch = DOOR;
+RTC_DATA_ATTR int _waitingForState = CLOSED;
+RTC_DATA_ATTR EVENT_TO_TRANSMIT _waitingToTransmit = BOOT;
+
+#include <home_wifi.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+
+WiFiClient WIFI_CLIENT;
+HTTPClient HTTP_CLIENT;
+
+void setup(){
+  Serial.begin(115200);
   
-  pinMode(BT_SWITCH, OUTPUT);
-  
-  pinMode(post_flap, INPUT);
-  pinMode(door_flap, INPUT);
+  switch(_triggerSwitch){
+    case FLAP: flapOpened(); break;
+    case DOOR: doorOpened(); break;
+  }
 
-  bluetooth.begin(9600);
-  Serial.begin(9600);
+  //todo set up a retry if wifi connection fails. sleep for a few minutes and repeat until successful.
+//// use a retryCounter as well and include in the http method
+
+  Serial.flush();
+  WiFi.disconnect();
+  
+  esp_deep_sleep_start();
 }
 
-void wake() {
-}
+void loop(){}
 
-void safeTransmit(String line){
-  bluetooth.println(line);
-
-  bluetooth.flush();
-
-  Serial.println(line);
+String buildMessage(){
+  DynamicJsonDocument json(JSON_OBJECT_SIZE(2));
   
-  while (!(UCSR0A & (1 << UDRE0)))  // Wait for empty transmit buffer
-    UCSR0A |= 1 << TXC0;  // mark transmission not complete
-  while (!(UCSR0A & (1 << TXC0)));   // Wait for the transmission to complete
-}
+  json["deviceVoltageMeasurement"] = voltageReading();
+  json["retryCount"] = _retryCount;
 
-void interruptSleep(int interruptId){
-  bluetoothPower(false);
-  attachInterrupt(interruptId, wake, LOW);
-  LowPower.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF); 
+  String serialised;
+
+  serializeJson(json, serialised);
+
+  Serial.println(serialised);
   
-  // Disable external pin interrupt on wake up pin.
-  detachInterrupt(interruptId);
-  bluetoothPower(true);
+  return serialised;
 }
 
-void bluetoothPower(bool on){
-  if(on){
-    digitalWrite(BT_SWITCH, HIGH);
-  }else{
-    digitalWrite(BT_SWITCH, LOW);
+boolean postHttp(String path){
+  String jsonString = buildMessage();
+  
+  HTTP_CLIENT.begin(WIFI_CLIENT, String(SERVER_ROOT) + path);
+  HTTP_CLIENT.addHeader(HTTP_CONTENT_TYPE_HEADER, HTTP_APPLICATION_JSON_CONTENT_TYPE);
+  HTTP_CLIENT.addHeader(HTTP_CONTENT_LENGTH_HEADER, String(jsonString.length()));
+  int result = HTTP_CLIENT.POST(jsonString);
+
+  Serial.print("HTTP POST Completed with code "); Serial.println(result);
+  
+  return result == HTTP_OK;
+}
+
+void flapOpened(){
+  Serial.println("Post arrived!");
+
+  if(connectToWifi()){
+    postHttp("/delivered");
+    //todo handle the fail case of no wifi or non ok response, set up a retry pause
+  }
+  waitFor(DOOR, OPEN);
+}
+
+void doorOpened(){
+  switch(_waitingForState){
+    case OPEN: {
+      Serial.println("Door opened!");
+      if(connectToWifi()){
+        postHttp("/retrieved");
+      }
+      waitFor(DOOR, CLOSED);
+      break;
+    }
+    case CLOSED: {
+      Serial.println("Door closed!");
+      waitFor(FLAP, OPEN);
+      break;
+    }
   }
 }
 
-void transmitPost(){
-  delay(20000);
-  safeTransmit("p");
-  delay(1000);
+void waitFor(int switchName, int nextState){
+  Serial.print("Waiting for ");
+  
+  _triggerSwitch = switchName;
+  _waitingForState = nextState;
+
+  esp_sleep_ext1_wakeup_mode_t wakeMode;
+
+  
+  switch(nextState){
+    case OPEN: wakeMode = ESP_EXT1_WAKEUP_ANY_HIGH; Serial.print("opening"); break;
+    case CLOSED: wakeMode = ESP_EXT1_WAKEUP_ALL_LOW; Serial.print("closing"); break;
+  }
+
+  Serial.print(" of ");
+   
+  switch(switchName){
+    case DOOR: esp_sleep_enable_ext1_wakeup(DOOR_BUTTON_MASK, wakeMode); Serial.print("DOOR"); break;
+    case FLAP: esp_sleep_enable_ext1_wakeup(FLAP_BUTTON_MASK, wakeMode); Serial.print("FLAP"); break;
+  }
+
+  Serial.println(".");
 }
 
-void transmitDoor(){
-  delay(20000);
-  safeTransmit("r");
-  delay(500);
-  safeTransmit("r");
-  delay(1000);
+int voltageReading(){
+  pinMode(VOLTAGE_PIN, INPUT);
+  
+  int voltageValue = 0;
+  for(int i=0; i<STABILISING_DATA_POINTS; i++){
+    voltageValue = voltageValue + analogRead(VOLTAGE_PIN);
+    delay(STABILISING_POINT_INTERVAL);
+  }
+  
+  voltageValue = voltageValue / STABILISING_DATA_POINTS;
+  return voltageValue;
 }
 
-void loop() {
-    interruptSleep(post_interrupt);
+boolean connectToWifi(){
+  String wifiConnectionInfo = "Connecting to WiFi";
 
-    transmitPost();
+  
+  if(WiFi.status() == WL_CONNECTED){
+    return true;  
+  }
+  
+  Serial.print("Connecting to ");
+  Serial.println(WIFI_SSID);
+  
+  WiFi.setHostname(WIFI_CLIENT_HOSTNAME);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+  int connectAttempts = 0;
+  int connectRetryInterval = 500;
+  int failureCountdown = WIFI_CONNECT_TIMEOUT_SECONDS * 1000;
+  
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(connectRetryInterval);
     
-    interruptSleep(door_interrupt);
+    Serial.print(".");
 
-    transmitDoor();
+    failureCountdown = failureCountdown - connectRetryInterval;
+    
+    if(failureCountdown < 0) {
+      Serial.println("");
+      Serial.println("Failed to connect.");
+      return false;
+    }
+  }
+  
+  Serial.println("");
+  Serial.println("WiFi connected"); 
+  return true;
 }
