@@ -1,15 +1,25 @@
-#define STABILISING_DATA_POINTS 100
-#define STABILISING_POINT_INTERVAL 1
-
 /**
  * Network Configuration
  */
 #define WIFI_CONNECT_TIMEOUT_SECONDS 10
-#define SERVER_ROOT "http://192.168.178.20:8080/postbox"
+#define SERVER_ROOT "http://192.168.178.29:8080/postbox"
 #define WIFI_CLIENT_HOSTNAME "postbox"
 
 /**
- * Http defaults
+ * Ping interval in seconds
+ */
+ #define PING_INTERVAL_SECONDS 1 // todo change to 86400 = Once per 24 hours
+
+
+
+
+
+
+
+
+
+/**
+ * Http defaults which never change
  */
 
 #define HTTP_OK 200
@@ -17,24 +27,39 @@
 #define HTTP_CONTENT_LENGTH_HEADER "Content-Length"
 #define HTTP_APPLICATION_JSON_CONTENT_TYPE "application/json"
 
- 
+ /**
+ * Data points required for voltage measurement
+ */
+#define STABILISING_DATA_POINTS 100
+#define STABILISING_POINT_INTERVAL 1
+
 /**
  * Pin Mappings and hardware configuration
  */
 
 #define FLAP_BUTTON_MASK 0x1000000000 //Button connected to GPIO36 (A0)
 #define DOOR_BUTTON_MASK 0x8000000000 //Button connected to GPIO39 (A1)
-
+#define uS_TO_S_FACTOR 1000000  /* Conversion factor for micro seconds to seconds */
 #define FLAP A0
 #define DOOR A1
 #define VOLTAGE_PIN A2
 
+
+
+
+
+
+
+
+/**
+ * States and event types
+ */
 enum DOOR_STATES {
   OPEN,
   CLOSED
 };
 
-enum EVENT_TO_TRANSMIT {
+enum NOTIFY_TYPES {
   NO_EVENT,
   BOOT,
   DELIVERED,
@@ -42,10 +67,26 @@ enum EVENT_TO_TRANSMIT {
   PING
 };
 
+
+
+
+
+
+
+/**
+ * Variables which are persistent during deep sleep
+ */
 RTC_DATA_ATTR int _retryCount = 0;
 RTC_DATA_ATTR int _triggerSwitch = DOOR;
 RTC_DATA_ATTR int _waitingForState = CLOSED;
-RTC_DATA_ATTR EVENT_TO_TRANSMIT _waitingToTransmit = BOOT;
+RTC_DATA_ATTR NOTIFY_TYPES _pendingTransmission = NO_EVENT;
+
+
+
+
+
+
+
 
 #include <home_wifi.h>
 #include <WiFi.h>
@@ -57,22 +98,108 @@ HTTPClient HTTP_CLIENT;
 
 void setup(){
   Serial.begin(115200);
-  
-  switch(_triggerSwitch){
-    case FLAP: flapOpened(); break;
-    case DOOR: doorOpened(); break;
+
+  switch(esp_sleep_get_wakeup_cause()){
+    case ESP_SLEEP_WAKEUP_EXT1: {
+      Serial.println("Woke due to sensor event");
+      onSensorWake();
+      break;
+    }
+    case ESP_SLEEP_WAKEUP_TIMER: {
+      Serial.println("Woke due to timer event");
+      onTimerWake();
+      break;
+    }
+    default: {
+      Serial.println("Woke due to boot event");
+      onBootWake();
+      break;
+    }
   }
-
-  //todo set up a retry if wifi connection fails. sleep for a few minutes and repeat until successful.
-//// use a retryCounter as well and include in the http method
-
+  
+  scheduleNextPing();
+  
   Serial.flush();
   WiFi.disconnect();
-  
+
   esp_deep_sleep_start();
 }
 
 void loop(){}
+
+void onTimerWake(){
+  executeRetry();
+  waitFor(_triggerSwitch, _waitingForState);
+}
+
+void onBootWake(){
+  _retryCount = 0;
+  notify(BOOT);
+  waitFor(FLAP, OPEN);
+}
+
+void onSensorWake(){
+  _retryCount = 0;
+  switch(_triggerSwitch){
+    case FLAP: flapOpened(); break;
+    case DOOR: doorOpened(); break;
+  }
+}
+
+void executeRetry(){
+  if(_pendingTransmission != NO_EVENT){
+    notify(_pendingTransmission);
+  }
+}
+
+void scheduleNextPing(){
+  if(_pendingTransmission != NO_EVENT && _pendingTransmission != PING){
+    Serial.print("Not scheduling a ping because a ");
+    Serial.print(notifyTypeToString(_pendingTransmission));
+    Serial.println(" transmission is already pending.");
+    return;
+  }
+
+  _pendingTransmission = PING;
+  _retryCount = 0;
+
+  Serial.print("Scheduling next ping for ");
+  Serial.print(PING_INTERVAL_SECONDS);
+  Serial.println(" seconds from now...");
+  
+  esp_sleep_enable_timer_wakeup((long)PING_INTERVAL_SECONDS * (long)uS_TO_S_FACTOR);
+}
+
+void scheduleRetry(NOTIFY_TYPES notifyType){
+  Serial.println("Retry scheduled");
+  _pendingTransmission = notifyType;
+  _retryCount++;
+
+  long t1 = 0;
+  int t2 = 1;
+  int nth = 1;
+
+  for(int i = 2; i <= _retryCount; i++){
+    nth = t1 + t2;
+    t1 = t2;
+    t2 = nth;
+
+    if(nth >= PING_INTERVAL_SECONDS){
+      break;
+    }
+  }
+
+  Serial.print("Scheduling retry for ");
+  Serial.print(nth);
+  Serial.println(" seconds from now...");
+
+  esp_sleep_enable_timer_wakeup((long)nth * (long)uS_TO_S_FACTOR);
+}
+
+void clearRetry(){
+  _pendingTransmission = NO_EVENT;
+  _retryCount = 0;
+}
 
 String buildMessage(){
   DynamicJsonDocument json(JSON_OBJECT_SIZE(2));
@@ -81,34 +208,52 @@ String buildMessage(){
   json["retryCount"] = _retryCount;
 
   String serialised;
-
   serializeJson(json, serialised);
-
-  Serial.println(serialised);
   
   return serialised;
 }
 
-boolean postHttp(String path){
+void notify(NOTIFY_TYPES notifyType){
+  if(!connectToWifi()){
+    scheduleRetry(notifyType);
+    return;
+  }
+
+  String path;
+  
+  switch(notifyType){
+    case NO_EVENT: return;
+    case BOOT: path = "/boot"; break;
+    case DELIVERED: path = "/delivered"; break;
+    case RETRIEVED: path = "/retrieved"; break;
+    case PING: path = "/ping"; break;
+    default: return;
+  };
+  
   String jsonString = buildMessage();
+
+  Serial.print("Posting ");
+  Serial.print(jsonString);
+  Serial.print(" to ");
+  Serial.println(path);
   
   HTTP_CLIENT.begin(WIFI_CLIENT, String(SERVER_ROOT) + path);
   HTTP_CLIENT.addHeader(HTTP_CONTENT_TYPE_HEADER, HTTP_APPLICATION_JSON_CONTENT_TYPE);
   HTTP_CLIENT.addHeader(HTTP_CONTENT_LENGTH_HEADER, String(jsonString.length()));
   int result = HTTP_CLIENT.POST(jsonString);
 
-  Serial.print("HTTP POST Completed with code "); Serial.println(result);
-  
-  return result == HTTP_OK;
+  if(result == HTTP_OK){
+    Serial.println("HTTP POST completed successfully!");
+    clearRetry();
+  }else{
+    Serial.print("HTTP POST failed with code "); Serial.println(result);
+    scheduleRetry(notifyType);
+  }
 }
 
 void flapOpened(){
   Serial.println("Post arrived!");
-
-  if(connectToWifi()){
-    postHttp("/delivered");
-    //todo handle the fail case of no wifi or non ok response, set up a retry pause
-  }
+  notify(DELIVERED);
   waitFor(DOOR, OPEN);
 }
 
@@ -116,9 +261,7 @@ void doorOpened(){
   switch(_waitingForState){
     case OPEN: {
       Serial.println("Door opened!");
-      if(connectToWifi()){
-        postHttp("/retrieved");
-      }
+      notify(RETRIEVED);
       waitFor(DOOR, CLOSED);
       break;
     }
@@ -140,8 +283,8 @@ void waitFor(int switchName, int nextState){
 
   
   switch(nextState){
-    case OPEN: wakeMode = ESP_EXT1_WAKEUP_ANY_HIGH; Serial.print("opening"); break;
-    case CLOSED: wakeMode = ESP_EXT1_WAKEUP_ALL_LOW; Serial.print("closing"); break;
+    case OPEN: wakeMode = ESP_EXT1_WAKEUP_ALL_LOW; Serial.print("opening"); break;
+    case CLOSED: wakeMode = ESP_EXT1_WAKEUP_ANY_HIGH; Serial.print("closing"); break;
   }
 
   Serial.print(" of ");
@@ -166,6 +309,25 @@ int voltageReading(){
   voltageValue = voltageValue / STABILISING_DATA_POINTS;
   return voltageValue;
 }
+
+/**
+ * Helper methods
+ */
+
+ String notifyTypeToString(NOTIFY_TYPES notifyType){
+  switch(notifyType){
+    case NO_EVENT: return "no event";
+    case BOOT: return "boot";
+    case DELIVERED: return "delivered";
+    case RETRIEVED: return "retrieved";
+    case PING: return "ping";
+    default: return "Unknown";
+  };
+}
+
+/**
+ * WiFi management
+ */
 
 boolean connectToWifi(){
   String wifiConnectionInfo = "Connecting to WiFi";
