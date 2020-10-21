@@ -8,7 +8,7 @@
 /**
  * Ping interval in seconds
  */
- #define PING_INTERVAL_SECONDS 1 // todo change to 86400 = Once per 24 hours
+ #define PING_INTERVAL_SECONDS 86400 // 60 * 60 * 24
 
 
 
@@ -31,7 +31,7 @@
  * Data points required for voltage measurement
  */
 #define STABILISING_DATA_POINTS 100
-#define STABILISING_POINT_INTERVAL 1
+#define STABILISING_POINT_INTERVAL 10
 
 /**
  * Pin Mappings and hardware configuration
@@ -39,7 +39,7 @@
 
 #define FLAP_BUTTON_MASK 0x1000000000 //Button connected to GPIO36 (A0)
 #define DOOR_BUTTON_MASK 0x8000000000 //Button connected to GPIO39 (A1)
-#define uS_TO_S_FACTOR 1000000  /* Conversion factor for micro seconds to seconds */
+#define uS_TO_S_FACTOR 1000000ULL  /* Conversion factor for micro seconds to seconds */
 #define FLAP A0
 #define DOOR A1
 #define VOLTAGE_PIN A2
@@ -76,7 +76,7 @@ enum NOTIFY_TYPES {
 /**
  * Variables which are persistent during deep sleep
  */
-RTC_DATA_ATTR int _retryCount = 0;
+RTC_DATA_ATTR long _retryCount = 0;
 RTC_DATA_ATTR int _triggerSwitch = DOOR;
 RTC_DATA_ATTR int _waitingForState = CLOSED;
 RTC_DATA_ATTR NOTIFY_TYPES _pendingTransmission = NO_EVENT;
@@ -153,7 +153,7 @@ void executeRetry(){
 }
 
 void scheduleNextPing(){
-  if(_pendingTransmission != NO_EVENT && _pendingTransmission != PING){
+  if(_pendingTransmission != NO_EVENT){
     Serial.print("Not scheduling a ping because a ");
     Serial.print(notifyTypeToString(_pendingTransmission));
     Serial.println(" transmission is already pending.");
@@ -166,8 +166,9 @@ void scheduleNextPing(){
   Serial.print("Scheduling next ping for ");
   Serial.print(PING_INTERVAL_SECONDS);
   Serial.println(" seconds from now...");
-  
-  esp_sleep_enable_timer_wakeup((long)PING_INTERVAL_SECONDS * (long)uS_TO_S_FACTOR);
+
+  uint64_t microsecondsToGo = PING_INTERVAL_SECONDS * uS_TO_S_FACTOR;
+  esp_sleep_enable_timer_wakeup(microsecondsToGo);
 }
 
 void scheduleRetry(NOTIFY_TYPES notifyType){
@@ -176,10 +177,10 @@ void scheduleRetry(NOTIFY_TYPES notifyType){
   _retryCount++;
 
   long t1 = 0;
-  int t2 = 1;
-  int nth = 1;
+  long t2 = 1;
+  long nth = 1;
 
-  for(int i = 2; i <= _retryCount; i++){
+  for(long i = 2; i <= _retryCount; i++){
     nth = t1 + t2;
     t1 = t2;
     t2 = nth;
@@ -193,7 +194,9 @@ void scheduleRetry(NOTIFY_TYPES notifyType){
   Serial.print(nth);
   Serial.println(" seconds from now...");
 
-  esp_sleep_enable_timer_wakeup((long)nth * (long)uS_TO_S_FACTOR);
+  uint64_t delayTimeMicroseconds = nth * uS_TO_S_FACTOR;
+  
+  esp_sleep_enable_timer_wakeup(delayTimeMicroseconds);
 }
 
 void clearRetry(){
