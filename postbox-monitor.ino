@@ -8,7 +8,7 @@
 /**
  * Ping interval in seconds
  */
- #define PING_INTERVAL_SECONDS 86400 // 60 * 60 * 24
+#define PING_INTERVAL_SECONDS 86400 // 1 day = 86400 = 60 * 60 * 24
 
 
 
@@ -128,7 +128,7 @@ void setup(){
 void loop(){}
 
 void onTimerWake(){
-  executeRetry();
+  executeSchedule();
   waitFor(_triggerSwitch, _waitingForState);
 }
 
@@ -146,8 +146,9 @@ void onSensorWake(){
   }
 }
 
-void executeRetry(){
+void executeSchedule(){
   if(_pendingTransmission != NO_EVENT){
+    _retryCount++;
     notify(_pendingTransmission);
   }
 }
@@ -157,11 +158,12 @@ void scheduleNextPing(){
     Serial.print("Not scheduling a ping because a ");
     Serial.print(notifyTypeToString(_pendingTransmission));
     Serial.println(" transmission is already pending.");
+    scheduleRetry(_pendingTransmission);
     return;
   }
 
   _pendingTransmission = PING;
-  _retryCount = 0;
+  _retryCount = -1;
 
   Serial.print("Scheduling next ping for ");
   Serial.print(PING_INTERVAL_SECONDS);
@@ -174,7 +176,6 @@ void scheduleNextPing(){
 void scheduleRetry(NOTIFY_TYPES notifyType){
   Serial.println("Retry scheduled");
   _pendingTransmission = notifyType;
-  _retryCount++;
 
   long t1 = 0;
   long t2 = 1;
