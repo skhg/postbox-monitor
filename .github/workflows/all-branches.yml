@@ -11,7 +11,7 @@ jobs:
           pip install cpplint
       - name: Run C++ linter
         run: |
-          cpplint --extensions=ino,h --recursive */*
+          cpplint --extensions=ino,h *.ino
 
   build-arduino:
     runs-on: ubuntu-latest
