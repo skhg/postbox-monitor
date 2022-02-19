@@ -1,0 +1,62 @@
+@startuml
+
+title Postbox monitor workflow
+
+
+
+start
+
+:Determine wake reason;
+
+if (ESP_SLEEP_WAKEUP_EXT1) then (Sensor event)
+  if (Which sensor?) then (Door)
+    if (What state?) then (Open)
+      :Send message:\n"RETRIEVED";
+      :Set trigger event:\n"Door Closed";
+    else (Closed)
+      :Set trigger event:\n"Flap Open";
+    endif
+  else (Flap)
+    :Send message:\n"DELIVERED";
+    :Set trigger event:\n"Door Open";
+  endif
+elseif (ESP_SLEEP_WAKEUP_TIMER) then (Ping or event retry timer)
+  :Increment the\nretry counter;
+  :Send message:\n(Last unsent message type);
+  :Set trigger event:\n(Active trigger event);
+else (Hard boot)
+  :Send message:\n"BOOT";
+  :Set trigger event:\n"Flap Open";
+endif
+
+if (Any unsent messages?) then (Yes)
+  :Schedule a send retry;
+else (No)
+  :Schedule the next\nPING event;
+endif
+
+:Flush all Serial data;
+:Force WiFi disconnect;
+:Enter deep sleep;
+stop
+
+
+partition "Send message" {
+    if (Connect to WiFi) then (success)
+        :Read sensors;
+        :Build JSON payload;
+        :POST to remote endpoint;
+        if (HTTP response code) then (200 OK)
+          :Clear the retry flag;
+          end
+        else (Not 200 OK)
+          :Schedule a send retry;
+        endif
+    else (failure)
+        :Schedule a send retry;
+    endif
+
+    :Enter deep sleep;
+    end
+}
+@enduml
