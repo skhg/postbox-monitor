@@ -1,42 +1,36 @@
 # postbox-monitor
-Arduino installation to detect when post is delivered to our postbox
+I don't like checking my postbox every day for new deliveries, so I built a monitoring system that notifies me by email when something arrives. It works!
 
-## Raspberry Pi pairing
+## The finished product
+Here's how it looks, when installed:
 
-https://www.raspberrypi.org/forums/viewtopic.php?t=163712 will get it working with no additional system config changes
+![Inside the door](images/door-inside-angle.jpeg "Inside the door")
 
-Magic is `sudo rfcomm connect hci0 AA:BB:CC:DD:EE:FF`
-or maybe `sudo rfcomm listen hci0 AA:BB:CC:DD:EE:FF`
+That's a battery pack, main bus board, microcontroller board, and two switches, all stuck on the inside of my postbox door. It looks like a mess, but the important thing is to ensure nothing falling into the postbox can dislodge any cables or connectors accidentally.
 
+## Goals for the project
+ * Be **virtually invisible** from outside the postbox
+ * Run on battery power for at least ~1 year without discharging
+ * Break "rarely"
+ * "Very low" false positive rate 
+ * Be resiliant to WiFi outages or failure
 
-## Send data from Arduino
+## Materials required
+Electronics:
+* 4x AAA battery pack 
+* Various cables
+* Perfboard
+* JST connectors
+* 1x FireBeetle ESP32 microcontroller
+* Microswitches
 
-http://blog.whatgeek.com.pt/2015/09/bluetooth-communication-between-raspberry-pi-and-arduino/
+Other:
+* Little blocks of wood
+* Thin pieces of rubber
+* Lots of insulating tape
+* Small screws
 
-## Trigger BT connection from Arduino
-Maybe?
-https://stackoverflow.com/questions/18752499/initiate-connection-from-arduino-to-remote-device
+Other systems:
+* Since this device can't send email by itself, you'll need something which can host the REST endpoints that this board will connect to, when events occur. More on that later 
 
-
-Required on Raspi
-
-`sudo apt-get install bluez python-bluez`
-
-## Low Power
-
-http://www.home-automation-community.com/arduino-low-power-how-to-run-atmega328p-for-a-year-on-coin-cell-battery/
-
-## Transistor
-
-https://www.digikey.com/en/resources/conversion-calculators/conversion-calculator-resistor-color-code-5-band
-https://learn.adafruit.com/transistors-101?view=all
-
-
-## SMS gateway
-https://www.opentextingonline.com/emailtotext.aspx
-
-## Send emails
-https://stackabuse.com/how-to-send-emails-with-gmail-using-python/
-
-## Sensor
-https://randomnerdtutorials.com/monitor-your-door-using-magnetic-reed-switch-and-arduino/
+<i>(Exported from Fritzing [file](traffic-light-board.fzz))</i>
