@@ -97,18 +97,32 @@ When my service handles a `/delivered` or `/retrieved` request, I either send a 
 With the additional device data I recieve in the JSON contents, I can conveniently monitor the power voltage (in mV) and the condition of the WiFi connection over time.
 
 ## Performance analysis
-My service pushes all event data to InfluxDB for later analysis using Grafana. After a few hiccups at the start the system completed its commissioning on 2020-10-20. Its first set of batteries until 2022-03-02 when their voltage dropped below the required 3.3V.
-
-With the [batteries](https://www.amazon.de/-/en/gp/product/B007B9NXAC/ref=ppx_yo_dt_b_search_asin_title?ie=UTF8&psc=1) claiming a capacity of 800mAh, this means the system is consuming [an average](https://www.omnicalculator.com/other/battery-life) of 66.93µA over ~12,000 hours (498 days).
+My service pushes all event data to InfluxDB for later analysis using Grafana. After a few hiccups at the start the system completed its "commissioning" on 2020-10-25. Its first set of batteries lasted until 2022-03-02 when their voltage dropped below the required 3.3V.
 
 ![Grafana dashboard](images/grafana-1yr.png "Grafana dashboard")
 
-I'm using the [Discrete](https://grafana.com/grafana/plugins/natel-discrete-panel/) panel Grafana plugin to show the postbox state over time. Green indicates "read", blue indicates "unread" and orange represents "booted".
+_Note: I'm using the [Discrete](https://grafana.com/grafana/plugins/natel-discrete-panel/) panel Grafana plugin to show the postbox state over time. Green: "read", blue: "unread", orange: "booted"._
+
+With the [batteries](https://www.amazon.de/-/en/gp/product/B007B9NXAC/ref=ppx_yo_dt_b_search_asin_title?ie=UTF8&psc=1) claiming a capacity of 800mAh, this means the system is consuming [an average](https://www.omnicalculator.com/other/battery-life) of 68µA over ~12,000 hours (493 days).
+
+![Analysis](images/analysis.png "Analysis sheet")
+<i>Generated from <a href="https://docs.google.com/spreadsheets/d/1rllKjjHKtWIUKkeni1poOeJL0zPl1OUqKPO-2vArXlA/edit?usp=sharing">this sheet</a></i>
+
+Including retries, Influx recorded 2634 "attempts" to connect and report data during ths period. Out of the 839 events (pings, deliveries and retrievals) during this period, 302 (about 36%) required a connection retry.
+
+I'm not really sure how much power is consumed by the board while WiFi is active. The data sheet reports "typical" power consumption of 80mA when awake. Based on this, and considering how many attempts total were made during the period, it looks like the board was awake for a total of around 8.5 hours.
+
+The 11.65 seconds average wake time _might_ be largely defined by the 10 seconds `WIFI_CONNECT_TIMEOUT_SECONDS` value. A useful measurement to follow up with, would be to see how long it typically takes to make a successful connection, and reduce this value. If no connections ever succeed after (for example) 5 seconds, then there is no point in waiting 10 seconds.
+
+![Retry chart](images/retries-histogram.png "Retries chart")
+<i>Generated from <a href="https://docs.google.com/spreadsheets/d/1rllKjjHKtWIUKkeni1poOeJL0zPl1OUqKPO-2vArXlA/edit?usp=sharing">this sheet</a></i>
+
+Retry success seems to get a bit worse around the 9th retry (approx delay of 3 minutes), and improve again at the 17th retry (approx delay of 72 minutes). I have no idea why this happens yet.
 
 ## Ideas for improvement
 
 Reduce the number of retries, which would further reduce power required
-*  I don't really know why the retry count varies so much over time. It might be due to interference, temperature, WiFi network activity, etc.
+*  I don't really know why the retry count varies so much over time. It might be due to interference, temperature, WiFi network activity, etc. 
 
 Built-in camera
 * A camera, mounted to the interior, could take a photo when new post arrives (with a brief LED flash to illuminate). This would be sent with the email alert
