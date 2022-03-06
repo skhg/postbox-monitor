@@ -8,7 +8,7 @@ Here's how it looks, when installed:
 
 That's a battery pack, main bus board, microcontroller board, and two switches, all stuck on the inside of my postbox door. It looks like a mess, but the important thing is to ensure nothing falling into the postbox can dislodge any cables or connectors accidentally.
 
-![Notification](images/notification.jpg "The resulting email")
+<img src="images/notification.jpg" width="50%"/>
 
 ## Goals for the project
  * Be **virtually invisible** from outside the postbox
