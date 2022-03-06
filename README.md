@@ -46,6 +46,10 @@ On the first point however there is a tiny exception - the only gap in the metal
 
 So next consideration is how to make this as low-maintenance as possible. Just do the absolute minimum, use as little power as possible, and keep operating even if external systems go offline.
 
+<a href="images/board-close.jpeg"><img src="images/board-close.jpeg" width="50%"/></a><a href="images/door-inside.jpeg"><img src="images/door-inside.jpeg" width="50%"/></a>
+
+<a href="images/door-switch.jpeg"><img src="images/door-switch.jpeg" width="50%"/></a><a href="images/flap-switch.jpeg"><img src="images/flap-switch.jpeg" width="50%"/></a>
+
 ### Extreme power efficiency
 I chose the [FireBeetle ESP32](https://www.dfrobot.com/product-1590.html) board due to its extreme power efficiency. It supports a deep sleep mode that consumes just 10μA, with no board modifications required! Before sleeping, a number of trigger pins can be set. One can wake the board when the flap opens, and another when the door opens.
 
@@ -60,7 +64,8 @@ Here's a general overview:
 <i>(Exported from Fritzing [file](images/postbox-monitor.fzz))</i>
 
 ### Workflow
-
+![Workflow](docs/workflow.png "Workflow")
+<i>(Exported from `.puml` [file](docs/workflow.puml))</i>
 
 ## Installation
 Here's how it was designed for installation with a bus board:
@@ -110,3 +115,9 @@ Built-in camera
 
 Slimmer mounting on the postbox door
 * With a bit more finesse the wires & connectors could be made to protrude less from the microcontroller board - this would reduce the risk of a big parcel disconnecting some wires. (This happened at least once already)
+
+Simplify the workflow
+* After review it seems there are some possible problems with the code, in that events might not be detected, if a previous event has not yet been sent. This probably deserves another look.
+
+Email send retry
+* If the REST endpoint is accessible but the internet isn't, the notification email will not be sent. I need to add a retry mechanism for the fairly unlikely event that the internet is down. This has happened at least twice over the past year.
