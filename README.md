@@ -56,7 +56,7 @@ I chose the [FireBeetle ESP32](https://www.dfrobot.com/product-1590.html) board 
 ### Resilient WiFi connectivity
 The WiFi network from my apartment upstairs might not always be available, due to various factors. So it's important the board can make a best effort to connect, but not waste time if the network or endpoint is unavailable at that moment.
 
-I use a simple backoff strategy which doubles the time interval between subsequent retries, up to a maximum of 24 hours. Every 24 hours the system pings home to report it's still alive, so there is no need to exceed this limit.
+I use a simple fibonacci backoff strategy which increases the time interval between subsequent retries, up to a maximum of 24 hours. Every 24 hours the system pings home to report it's still alive, so there is no need to exceed this limit.
 
 ### Circuit diagram
 Here's a general overview:
