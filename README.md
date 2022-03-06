@@ -8,6 +8,8 @@ Here's how it looks, when installed:
 
 That's a battery pack, main bus board, microcontroller board, and two switches, all stuck on the inside of my postbox door. It looks like a mess, but the important thing is to ensure nothing falling into the postbox can dislodge any cables or connectors accidentally.
 
+![Notification](images/notification.jpg "The resulting email")
+
 ## Goals for the project
  * Be **virtually invisible** from outside the postbox
  * Run on battery power for at least ~1 year without discharging
@@ -17,12 +19,12 @@ That's a battery pack, main bus board, microcontroller board, and two switches, 
 
 ## Materials required
 Electronics:
-* 4x AAA battery pack 
+* 4x AAA [battery pack](https://www.amazon.de/-/en/gp/product/B077P186ZN/ref=ppx_yo_dt_b_search_asin_title?ie=UTF8&psc=1) 
 * Various cables
 * Perfboard
 * JST connectors
-* 1x FireBeetle ESP32 microcontroller
-* Microswitches
+* 1x [FireBeetle ESP32 microcontroller](https://www.amazon.de/-/en/gp/product/B075CV6GR4/ref=ppx_yo_dt_b_search_asin_title?ie=UTF8&psc=1)
+* 2x [Micro switches](https://www.amazon.de/gp/product/B07YDFH7H3/ref=ppx_yo_dt_b_asin_title_o02_s01?ie=UTF8&psc=1)
 
 Other:
 * Little blocks of wood
@@ -90,7 +92,21 @@ When my service handles a `/delivered` or `/retrieved` request, I either send a 
 With the additional device data I recieve in the JSON contents, I can conveniently monitor the power voltage (in mV) and the condition of the WiFi connection over time.
 
 ## Performance analysis
-My service pushes all event data to InfluxDB for later analysis using Grafana. After a few hiccups at the start the system completed it's commissioning on DATE.
+My service pushes all event data to InfluxDB for later analysis using Grafana. After a few hiccups at the start the system completed its commissioning on 2020-10-20. Its first set of batteries until 2022-03-02 when their voltage dropped below the required 3.3V.
+
+With the [batteries](https://www.amazon.de/-/en/gp/product/B007B9NXAC/ref=ppx_yo_dt_b_search_asin_title?ie=UTF8&psc=1) claiming a capacity of 800mAh, this means the system is consuming [an average](https://www.omnicalculator.com/other/battery-life) of 66.93µA over ~12,000 hours (498 days).
+
+![Grafana dashboard](images/grafana-1yr.png "Grafana dashboard")
+
+I'm using the [Discrete](https://grafana.com/grafana/plugins/natel-discrete-panel/) panel Grafana plugin to show the postbox state over time. Green indicates "read", blue indicates "unread" and orange represents "booted".
 
 ## Ideas for improvement
 
+Reduce the number of retries, which would further reduce power required
+*  I don't really know why the retry count varies so much over time. It might be due to interference, temperature, WiFi network activity, etc.
+
+Built-in camera
+* A camera, mounted to the interior, could take a photo when new post arrives (with a brief LED flash to illuminate). This would be sent with the email alert
+
+Slimmer mounting on the postbox door
+* With a bit more finesse the wires & connectors could be made to protrude less from the microcontroller board - this would reduce the risk of a big parcel disconnecting some wires. (This happened at least once already)
