@@ -11,21 +11,21 @@ start
 if (ESP_SLEEP_WAKEUP_EXT1) then (Sensor event)
   if (Which sensor?) then (Door)
     if (What state?) then (Open)
-      :Send message:\n"RETRIEVED";
+      :**Send message**:\n"RETRIEVED";
       :Set trigger event:\n"Door Closed";
     else (Closed)
       :Set trigger event:\n"Flap Open";
     endif
   else (Flap)
-    :Send message:\n"DELIVERED";
+    :**Send message**:\n"DELIVERED";
     :Set trigger event:\n"Door Open";
   endif
 elseif (ESP_SLEEP_WAKEUP_TIMER) then (Ping or event retry timer)
   :Increment the\nretry counter;
-  :Send message:\n(Last unsent message type);
+  :**Send message**:\n(Last unsent message type);
   :Set trigger event:\n(Active trigger event);
 else (Hard boot)
-  :Send message:\n"BOOT";
+  :**Send message**:\n"BOOT";
   :Set trigger event:\n"Flap Open";
 endif
 
