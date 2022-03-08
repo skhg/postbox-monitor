@@ -103,6 +103,7 @@ My service pushes all event data to InfluxDB for later analysis using Grafana. A
 
 _Note: I'm using the [Discrete](https://grafana.com/grafana/plugins/natel-discrete-panel/) panel Grafana plugin to show the postbox state over time. Green: "read", blue: "unread", orange: "booted"._
 
+### Power consumption
 With the [batteries](https://www.amazon.de/-/en/gp/product/B007B9NXAC/ref=ppx_yo_dt_b_search_asin_title?ie=UTF8&psc=1) claiming a capacity of 800mAh, this means the system is consuming [an average](https://www.omnicalculator.com/other/battery-life) of 68µA over ~12,000 hours (493 days).
 
 ![Analysis](images/analysis.png "Analysis sheet")
@@ -118,6 +119,22 @@ The 11.65 seconds average wake time _might_ be largely defined by the 10 seconds
 <i>Generated from <a href="https://docs.google.com/spreadsheets/d/1rllKjjHKtWIUKkeni1poOeJL0zPl1OUqKPO-2vArXlA/edit?usp=sharing">this sheet</a></i>
 
 Retry success seems to get a bit worse around the 9th retry (approx delay of 3 minutes), and improve again at the 17th retry (approx delay of 72 minutes). I have no idea why this happens yet.
+
+### Peak hours
+I can also see what were the peak hours of activity during the year. No surprises here: Deliveries usually happen in the morning, peaking around 10-11am. A few hours later, I collect the post. Both tail off in the evening, and not much happens between 8pm - 7am.
+
+![Peak hours](images/peak-times.png "Peak times")
+<i>Generated from <a href="https://docs.google.com/spreadsheets/d/1rllKjjHKtWIUKkeni1poOeJL0zPl1OUqKPO-2vArXlA/edit?usp=sharing">this sheet</a></i>
+
+### Retries needed vs time of day
+This chart does an analysis of the number of attempts needed to succeed in connecting to the network, for any event type. This is normalised for the number of events that happened during that hour.
+
+Seems like the evenings are worse, mornings are better. More WiFi interference at busy hours of the evening, maybe? 
+
+The good news however: since most deliveries happen in the morning, those events will get through within a few seconds, on average. 
+
+![Connection efforts needed](images/retries-vs-hour.png "Retries vs hour")
+<i>Generated from <a href="https://docs.google.com/spreadsheets/d/1rllKjjHKtWIUKkeni1poOeJL0zPl1OUqKPO-2vArXlA/edit?usp=sharing">this sheet</a>. Note: Very few events between 1am to 4am so those numbers might be safe to ignore.</i>
 
 ## Ideas for improvement
 
